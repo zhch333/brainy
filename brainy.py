@@ -25,8 +25,8 @@ Q_QUANTITY = 2      # number of questions per quiz-round - also the number of qu
 FUZZY_UPPER = 0.90  # required level of similarity to accept an answer
 
 
-def load_capitals():
-    f = open("../quest_capitals.bry", "r", newline="", encoding="windows-1252")
+def load_capitals(file_path_name):
+    f = open(file_path_name, "r", newline="", encoding="windows-1252")
     new_read = csv.reader(f, delimiter=",", quoting=csv.QUOTE_ALL)
     data = []
     data.extend(new_read)
@@ -52,15 +52,16 @@ def load_capitals():
             one_question["date_time"] = 5 * [0]
 
         one_question["count_known"] = int(data_line[7])
-        one_question["count"] = int(data_line[8])
+        one_question["count_false"] = int(data_line[8])
+        one_question["count"] = int(data_line[9])
         one_question["cycle"] = 0
 
         set_capitals.append(dict(one_question))
 
     return set_capitals
 
-def store_capitals(data):
-    m_list = [x for x in range(0,10)]
+def store_capitals(data, file_path_name):
+    m_list = [x for x in range(0,11)]
     n_list = []
     for m in data:
         m_list[0] = m["category"]
@@ -71,18 +72,19 @@ def store_capitals(data):
         m_list[5] = m["hint_2"]
         m_list[6] = m["date_time"]
         m_list[7] = m["count_known"]
-        m_list[8] = m["count"]
-        m_list[9] = m["cycle"]
+        m_list[8] = m["count_false"]
+        m_list[9] = m["count"]
+        m_list[10] = m["cycle"]
 
         n_list.append(list(m_list))
 
-    g = open("../quest_capitals.bry", "w", newline="", encoding="windows-1252")
+    g = open(file_path_name, "w", newline="", encoding="windows-1252")
     new_writer = csv.writer(g, delimiter=",", quoting=csv.QUOTE_ALL)
     for row in n_list:
         new_writer.writerow(row)
     g.close()
     # stupid 'test' wheather or not it wrote somethin
-    t = open("../quest_capitals.bry","r")
+    t = open(file_path_name,"r")
     test = t.read()
     t.close()
 
@@ -92,6 +94,7 @@ def store_capitals(data):
         return False
 
 def choose(orig_data, q_type):
+    random.shuffle(orig_data)
     if q_type == "cap":
 
         global Q_QUANTITY
@@ -158,9 +161,14 @@ def legit_answer(player_answer, question_line, start_time):
     question_line["date_time"] = list(time.localtime()[0:5])
     if check:
         question_line["count_known"] += 1
+    else:
+        question_line["count_false"] += 1
 
     # The new changes have to be written explicite into the database
-    for one_dict in q_one.c_questions:
+    for one_dict in q_one.c_world:
+        if one_dict["answer"] == question_line["answer"]:
+            one_dict.update(question_line)
+    for one_dict in q_one.c_deach:
         if one_dict["answer"] == question_line["answer"]:
             one_dict.update(question_line)
 
@@ -231,7 +239,7 @@ def answCheck(player_answer, solution, alt_solution, start_time):
 
         return True
 
-    # wrong answers wont get any points
+    # wrong answers wont get player_points
     else:
         print("\tFalsch (%d %%).\tLösung: %s" % (prz, solution))
         print("\n")
@@ -361,12 +369,8 @@ def special_orders(player_answer, question_line, start_time):
         switch = False
     elif player_answer == "!x":
         p_one.storePoints()
-        saved_1 = store_capitals(q_one.c_questions)
-        saved = saved_1 # and saved_2 and saved_3
-        if  saved == True:
-            print("\tGespeichert!")
-        else:
-            print("Error - Speicherfehler")
+        q_one.storeQuestions()
+
         sys.exit("Byebye!")
 
     return switch
@@ -374,16 +378,23 @@ def special_orders(player_answer, question_line, start_time):
 
 
 class Questions(object):
-    def __init__(self, desk=[]):
-        self.c_questions = load_capitals()
-        self.desk = desk
+    def __init__(self):
+        self.c_world = load_capitals("../quest_world.bry")
+        self.c_deach = load_capitals("../quest_deach.bry")
+        self.sub_world = []
+        self.sub_deach = []
+        self.desk = []
 
     def getQuestions(self, q_type):
-        self.desk = choose(self.c_questions, q_type)
+        self.sub_world = choose(self.c_world, q_type)
+        self.sub_deach = choose(self.c_deach, q_type)
+        self.desk = self.sub_world + self.sub_deach
+        random.shuffle(self.desk)
         return self.desk
-    def storeQuestions(self):
-        store_capitals(self.c_questions)
 
+    def storeQuestions(self):
+        store_capitals(self.c_world,"../quest_world.bry")
+        store_capitals(self.c_deach, "../quest_deach.bry")
 
 class Player(object):
     PLAYER_POINTS = 0
@@ -406,7 +417,8 @@ class Enquirer(object):
         question_desk = q_one.getQuestions(q_type)
 
         for question_line in question_desk:
-            q_one.storeQuestions()
+#            q_one.storeQuestions()
+
             self.START_T = time.time()
             self.Q_NUMBER += 1
             self.T_TIPP_NR = 0
@@ -430,8 +442,9 @@ class Quiz(object):
     proceed = True
 
     def start(self):
-        if self.Q_CYCLE == 0:
-            greeting()
+        pass
+#        if self.Q_CYCLE == 0:
+#            greeting()
 
         while self.proceed:
             self.Q_CYCLE += 1
