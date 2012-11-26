@@ -1,13 +1,130 @@
-﻿from os import system
-system("title " + "brainy - das Quiz von Alex")
+﻿#-------------------------------------------------------------------------------
+# Name:        brainy - das Quiz von Alex
+# Purpose:     Triviaquiz
+#
+# Author:      zhch - mail: zhch333@gmail.com
+#
+# Created:     24.11.2012
+# Version No.: proto-3
+# Changes:     1 data in list of dictionaries, 2 simpler classes, 3 explicite search and replace in legit_answer()
+# History:     proto-2 {1 data in list of lists, 2 changes in legit_answer() by implicte reference}
+# Copyright:   (c) zhch333 2012
+# Licence:     CC-BY-SA http://creativecommons.org/licenses/by-sa/3.0/ch/
+#-------------------------------------------------------------------------------
+import csv
 import random
+import time
 import difflib
 import math
-import time
 import sys
-import csv
+from os import system
+system("title " + "brainy v.3 - das Quiz von Alex")
 
-FUZZY_UPPER = 0.94
+# global constants - configuration
+Q_QUANTITY = 2      # number of questions per quiz-round - also the number of questions drawn from set
+FUZZY_UPPER = 0.90  # required level of similarity to accept an answer
+
+
+def load_capitals():
+    f = open("questCapitals2.csv", "r", newline="", encoding="windows-1252")
+    new_read = csv.reader(f, delimiter=",", quoting=csv.QUOTE_ALL)
+    data = []
+    data.extend(new_read)
+    f.close()
+
+    one_question = {"category":"","question":"","answer":"","alternativ":"","hint_1":"","hint_2":"","date_time":"","count_known":"","count":"","cycle":""}
+    set_capitals = []
+
+    for data_line in data:
+        one_question["category"] = data_line[0]
+        one_question["question"] = data_line[1]
+        one_question["answer"] = data_line[2]
+        one_question["alternativ"] = data_line[3]
+        one_question["hint_1"] = data_line[4]
+        one_question["hint_2"] = data_line[5]
+
+        date = data_line[6] #  "(##, ##, ##, ##, ##)" - it's a string at first
+        if date != "":
+            date = "".join(c for c in date if c not in "()[]\'\"") # unwanted characters removed
+            date = date.split(", ") # conversion into list
+            one_question["date_time"] = [int(data_line) for data_line in date] # conversion of each element from string to int
+        else:
+            one_question["date_time"] = 5 * [0]
+
+        one_question["count_known"] = int(data_line[7])
+        one_question["count"] = int(data_line[8])
+        one_question["cycle"] = 0
+
+        set_capitals.append(dict(one_question))
+
+    return set_capitals
+
+def store_capitals(data):
+    m_list = [x for x in range(0,10)]
+    n_list = []
+    for m in data:
+        m_list[0] = m["category"]
+        m_list[1] = m["question"]
+        m_list[2] = m["answer"]
+        m_list[3] = m["alternativ"]
+        m_list[4] = m["hint_1"]
+        m_list[5] = m["hint_2"]
+        m_list[6] = m["date_time"]
+        m_list[7] = m["count_known"]
+        m_list[8] = m["count"]
+        m_list[9] = m["cycle"]
+
+        n_list.append(list(m_list))
+
+    g = open("questCapitals2.csv", "w", newline="", encoding="windows-1252")
+    new_writer = csv.writer(g, delimiter=",", quoting=csv.QUOTE_ALL)
+    for row in n_list:
+        new_writer.writerow(row)
+    g.close()
+    # stupid 'test' wheather or not it wrote somethin
+    t = open("questCapitals2.csv","r")
+    test = t.read()
+    t.close()
+
+    if test != "":
+        return True
+    else:
+        return False
+
+def choose(orig_data, q_type):
+    if q_type == "cap":
+
+        global Q_QUANTITY
+
+        if len(orig_data) <  Q_QUANTITY:
+            Q_QUANTITY = 3
+
+        # just played questions are excluded
+        orig_data.sort(key = lambda x: -x["count"])
+        l = len(orig_data)
+        ready_questions = []
+        for g in orig_data:
+            if g["count"] < 1:
+                ready_questions.append(dict(g))
+        for h in range(len(ready_questions),l):
+            if orig_data[h]["count"] > 0:
+                orig_data[h]["count"] -= 1
+
+        # Selten gestellte Fragen bekommen hohe Priorität - Häufige werden nach Hinten sortiert
+        # Die gewünschte Anzahl Fragen wird abgetrennt
+        ready_questions.sort(key = lambda x: x["date_time"])
+        ready_questions = ready_questions[0:40]
+
+        # Nach Datum und Zeit geordnete Vorauswahl
+        ready_questions.sort(key = lambda x: (x["date_time"][0], x["date_time"][1], x["date_time"][2], x["date_time"][3], x["date_time"][4]))
+        desk_c = ready_questions[0:Q_QUANTITY]
+
+        # shuffle choosen questions
+        random.shuffle(desk_c)
+
+        return desk_c
+    else:
+        print("Fragetyp noch nicht vorhanden!")
 
 def line(num):
     if num == 1:
@@ -15,90 +132,113 @@ def line(num):
     elif num == 2:
         print(85 * "-")
 
-def help():
-    line(1)
-    print("\tBefehle:")
-    line(2)
-    print("\t   !a = Automatischer Tipp - einige Buchstaben werden aufgedeckt\n\t   Jeder Aufruf halbiert die möglichen Punkte")
-    print("\t   !t = Hinweise - max 2 pro Frage, oft kein Hinweis vorhanden\n\t   Kostet keine Punkte")
-    print("\t   !p = Gewonnene Punkte werden angezeigt\n")
-    print("\t   !h = Diese Hilfe nochmals anzeigen\n")
-    print("\t   !x = Exit - speichert und verlässt das Spiel\n")
-    line(1)
-
-def dataHS():
-    f = open("questionsHS.csv", "r", encoding="windows-1252")
-    new_red = csv.reader(f, delimiter=";", quoting=csv.QUOTE_ALL)
-    data = []
-    data.extend(new_red)
-    f.close()
-
-    setHS = []
-    for i in data:
-        tuple_complete = False
-        kategorie = i[0]
-        date = i[1] #  "(##, ##, ##, ##, ##)" - ein String
-        if date != "":
-            date = "".join(c for c in date if c not in "()[]\'\"") # unerwünschte Zeichen werden entfernt
-            date = date.split(", ") # Konversion zur Liste
-            date = [int(i) for i in date] # Konversion der Elemente von String zu Int
-        else:
-            date = 5 * [0]
-        count_total = int(i[2])
-        question = i[3]
-        answer = i[4]
-        alternativ = i[5]
-        tipp1 = i[6]
-        tipp2 = i[7]
-        count = int(i[8])
-        cycle = 0
-        tuple_complete = True
-
-        if tuple_complete:
-           tuple = [kategorie, date, count_total, question, answer, alternativ, tipp1, tipp2, count, cycle]
-           setHS.append(tuple)
-    return setHS
-
-def storeHS(data, m=False):
-    g = open("questionsHS.csv", "w", newline="", encoding="windows-1252")
-    neuwriter = csv.writer(g, delimiter=";", quoting=csv.QUOTE_ALL)
-    for row in data:
-        neuwriter.writerow(row)
-    g.close()
-    t = open("questionsHS.csv","r")
-    test = t.read()
-    t.close()
-    if test != "":
-        return True
+def getinput(desk_question, q_type):
+    if q_type == "cap":
+        question = desk_question["question"]
+        player_answer = ""
+        while player_answer == "":
+            player_answer = str(input("Nr.%d\tWie heisst die Hauptstadt %s?\n\n> " % (e_one.Q_NUMBER, question)))
+            if player_answer == "":
+                print("\tLeere Eingabe")
+            else:
+                return player_answer
     else:
+        print("Fragetyp noch nicht vorhanden!")
+
+# Legitime Antworten (nicht-leere, keine !-Befehle) werden hier aufgenommen und weitergleitet
+# Die Funktion ändert einige Werte zur Frage - um Wiederholungen zu vermindern
+def legit_answer(player_answer, question_line, start_time):
+    print()
+
+    solution = question_line["answer"]
+    alt_solution = question_line["alternativ"]
+    check = answCheck(player_answer, solution, alt_solution, start_time)
+    question_line["count"] += 1
+    question_line["cycle"] = quiz.Q_CYCLE
+    question_line["date_time"] = list(time.localtime()[0:5])
+    if check:
+        question_line["count_known"] += 1
+
+    # The new changes have to be written explicite into the database
+    for one_dict in q_one.c_questions:
+        if one_dict["answer"] == question_line["answer"]:
+            one_dict.update(question_line)
+
+    return True
+
+
+# Fuzzy-Vergleich der Antwort mit der Lösung - bei FUZZY_UPPER Übereinstimmung o.K.
+# Punkteverteilung nach Zeit und Übereinstimmung. Möglich: Nach Fragetypus.
+def answCheck(player_answer, solution, alt_solution, start_time):
+
+    comp1 = difflib.SequenceMatcher(None, umlaut(player_answer.lower()), umlaut(solution.lower())).ratio()
+    if alt_solution != "NULL":
+        comp2 = difflib.SequenceMatcher(None, umlaut(player_answer.lower()), umlaut(alt_solution.lower())).ratio()
+    else:
+        comp2 = 0
+
+    # calculation of points (aka the karmic portioner...)
+    # each timelimit gets its rank
+    point_range = 0 # diesen Wert könnte von verschiedenen Fragetypen abhängen, um andere Punkteverteilungen bei anderen Fragen zu erreichen
+    t_diff = round(time.time() - start_time)
+
+    if  t_diff < 11:
+        point_range = 1
+    elif t_diff < 20:
+        point_range = 2
+    elif t_diff < 30:
+        point_range = 2
+
+
+    points = 0.0
+    prz = round(comp1 * 100)
+    global FUZZY_UPPER
+
+    # correct answer: points depending on rank
+    if comp1 == 1 or comp2 == 1:
+        if point_range == 1:
+            points = 2.0
+        elif point_range == 2:
+            points = 1.0
+        else:
+            points = 0.0
+
+        # hypothetical earned points will be divided by two for each calling of "!a"
+        points = round(points /2 ** e_one.A_TIPP_NR, 2)
+        p_one.PLAYER_POINTS += points
+        print("\t%s ist korrekt! (%d sek) +%.2f" % (player_answer.upper(), t_diff, points))
+        print("\n")
+        return True
+
+    # accepable answers (fuzzy-matched): points depending on rank (but on a lower general level)
+    elif (comp1 < 1 and comp1 > FUZZY_UPPER) or (comp2 < 1 and comp2 > FUZZY_UPPER):
+        if point_range == 1:
+            points = 1.0
+        elif point_range == 2:
+            points = 0.5
+        else:
+            points = 0.0
+
+        # hypothetical earned points will be divided by two for each calling of "!a"
+        points = round(points /2 ** e_one.A_TIPP_NR, 2)
+        p_one.PLAYER_POINTS += points
+        print("\tAntwort > %s < wird akzeptiert. (%d %%, %d sek) + %.2f" % (player_answer, prz, t_diff, points))
+        if alt_solution != "NULL":
+            print("\tKorrekt: %s - alternativ: %s" % (solution, alt_solution))
+        else:
+            print("\tKorrekt:", solution)
+        print("\n")
+
+        return True
+
+    # wrong answers wont get any points
+    else:
+        print("\tFalsch (%d %%).\tLösung: %s" % (prz, solution))
+        print("\n")
+
         return False
 
-def choose(orig, number):
-    # Eben gerade gespielte Fragen werden aussortiert
-    orig.sort(key = lambda x: -x[8])
-    l = len(orig)
-    ready = []
-    for g in orig: # Kritische Stelle
-        if g[8] < 1:
-            ready += [g]
-    for h in range(len(ready),l):
-        if orig[h][8] > 0:
-            orig[h][8] -= 1
-
-    # Selten gestellte Fragen bekommen hohe Priorität - Häufige werden nach Hinten sortiert
-    # Die gewünschte Anzahl Fragen wird abgetrennt
-    ready.sort(key = lambda x: x[2])
-    ready = ready[0:25]
-
-    # Nach Datum und Zeit geordnete Vorauswahl
-    ready.sort(key = lambda x: (x[1][0], x[1][1], x[1][2], x[1][3], x[1][4]))
-    k = ready[0:number]
-
-    # Die ausgewählten Fragen werden gemischt
-    random.shuffle(k)
-    return k
-
-# Ersetzt die Umlaute und Punkte in Antworten und Lösungen
+# replace umlauts and some other characters
 def umlaut(text):
     t = list(text.lower())
     for i in range(0,len(text)):
@@ -115,243 +255,202 @@ def umlaut(text):
 
     return "".join(t)
 
-# Fuzzy Vergleich der Antwort mit der Lösung - bei FUZZY_UPPER Übereinstimmung o.K.
-def answCheck(user, data, alt):
-    a1 = user
-    l1 = data
-    aU = a1.lower()
-    a2 = umlaut(aU)
-    lU = l1.lower()
-    l2 = umlaut(lU)
-    alt2 = umlaut(alt.lower())
+def hint_please(player_answer, question_line):
+    answer = question_line["answer"]
+    a = e_one.A_TIPP_NR
+    t = e_one.T_TIPP_NR
+    tipp_nr = a + t + 1
 
-    comp1 = difflib.SequenceMatcher(None, a2, l2).ratio()
-    if alt != "NULL":
-        comp2 = difflib.SequenceMatcher(None, a2, alt2).ratio()
+    if player_answer == "!a":
+        if a < 2:
+            hintable = [x for x in range(len(answer)) if str.isalnum(answer[x])]
+            qty = math.ceil(len(hintable) * 3.5/8.0)
+            if len(hintable) == 1:
+                qty = 0
+            while len(hintable) > qty:
+                ch = random.randint(0, len(hintable)-1)
+                n = hintable[ch]
+                answer = answer[:n] + '.' + answer[n+1:]
+                del hintable[ch]
+            print("\tTipp %d: %s" % (tipp_nr, answer))
+            print()
+            e_one.A_TIPP_NR += 1
+        elif a == 2:
+            print("\tKeine weitern Tipps mehr! Letzte Warnung...\n")
+            e_one.A_TIPP_NR += 1
+        else:
+            return True
+
+    elif player_answer == "!t":
+        if question_line["hint_1"] == "":
+            print("\tKeine Tipps vorhanden (versuche !a)\n")
+            e_one.T_TIPP_NR += 1
+        elif t == 0:
+            print("\tTipp %d: %s" % (tipp_nr, question_line["hint_1"]))
+            e_one.T_TIPP_NR += 1
+        elif t == 1:
+            print("\tTipp %d: %s" % (tipp_nr, question_line["hint_2"]))
+            print("\tKeine weiteren Tipps mehr... (versuche !a)\n")
+            e_one.T_TIPP_NR += 1
+        else:
+            return True
     else:
-        comp2 = 0
+        print("????")
 
-    p_range = 0
-    td = zt.get_diff()
-    if  td < 11:
-        p_range = 1
-    elif td < 20:
-        p_range = 2
-    elif td < 30:
-        p_range = 2
-    points = 0
-    prz = round(comp1 * 100)
+    return False
 
-    if comp1 == 1 or comp2 == 1:
-        if p_range == 1:
-            points = 2
-        elif p_range == 2:
-            points = 1
+def reminder():
+    line(1)
+    print("\tBefehle:")
+    line(2)
+    print("\t   !r = Die Spielregeln anzeigen\n")
+    print("\t   !a = Automatischer Tipp - einige Buchstaben werden aufgedeckt\n\t\tJeder Aufruf halbiert die möglichen Punkte\n")
+    print("\t   !t = Hinweise - max 2 pro Frage, oft kein Hinweis vorhanden\n\t\tKostet keine Punkte\n")
+    print("\t   !p = Gewonnene Punkte werden angezeigt\n")
+    print("\t   !h = Diese Hilfe nochmals anzeigen\n")
+    print("\t   !x = Exit - speichert und verlässt das Spiel\n")
+    line(1)
+
+def rules():
+    global FUZZY_UPPER
+    a = round(FUZZY_UPPER * 100, 1)
+    line(1)
+    print("\tDie Spielregeln:")
+    line(2)
+    print("\t *  ", 68 * " ", "*")
+    print("\t *  1. Eine korrekte Antwort gibt max. +2 Punkte\t\t\t  *")
+    print("\t *  2. Eine 'akzeptierte' Antwort gibt max. +1 Punkt\t\t\t  *")
+    print("\t *     'akzeptiert': Übereinstimmung von %.1f %% bis 99.5 %%\t\t  *" % (a))
+    print("\t *  3. Nach einer gewissen Zeit vermindert sich die Maximalpunktzahl\t  *")
+    print("\t *  4. Mit jedem Aufruf von '!a' halbieren sich die möglichen Punkte\t  *")
+    print("\t *  ", 68 * " ", "*")
+    print("\t *  ", 68 * " ", "*")
+
+    line(1)
+
+def greeting():
+    line(1)
+    print("\tNeues Quiz - neues Glück!")
+    line(1)
+    reminder()
+    time.sleep(2)
+    for sek in range(3,0,-1):
+        print(5 * "\t", sek)
+        time.sleep(1)
+    line(2)
+    print("\tRunde Nr. 1")
+    line(2)
+
+
+def special_orders(player_answer, question_line, start_time):
+    if player_answer == "!t" or player_answer == "!a":
+        switch = hint_please(player_answer, question_line)
+        if switch == True:
+            switch = legit_answer("", question_line, start_time)
         else:
-            points = 0
-
-        print("\t", aU.upper(), "ist korrekt! (", zt.get_diff(), "sek) +", points)
-        moi.addPoints(2)
-        print("\n\n")
-        return "alpha"
-
-    elif comp1 < 1 and comp1 > FUZZY_UPPER:
-        if p_range == 1:
-            points = 1
-        elif p_range == 2:
-            points = 0.5
+            switch = False
+    elif player_answer == "!p":
+        print("\tPunkte: ", p_one.PLAYER_POINTS)
+        print()
+        switch = False
+    elif player_answer == "!h":
+        reminder()
+        switch = False
+    elif player_answer == "!r":
+        rules()
+        switch = False
+    elif player_answer == "!x":
+        p_one.storePoints()
+        saved_1 = store_capitals(q_one.c_questions)
+        saved = saved_1 # and saved_2 and saved_3
+        if  saved == True:
+            print("\tGespeichert!")
         else:
-            points = 0
-        print("\tAntwort", a1, "wird akzeptiert (", prz, "%) +", points)
-        if alt != "NULL":
-            print("\tKorrekt:", l1, ", Alternativ:", alt)
-        else:
-            print("\tKorrekt:", l1)
-        print("\n\n")
-        return "beta"
+            print("Error - Speicherfehler")
+        sys.exit("Byebye!")
 
-    elif comp2 < 1 and comp2 > FUZZY_UPPER:
-        if p_range == 1:
-            points = 1
-        elif p_range == 2:
-            points = 0.5
-        else:
-            points = 0
-        print("\tAntwort", a1, "wird akzeptiert (", prz, "%) +", points)
-        print("\tKorrekt:", alt, ", Alternativ:", l1)
-        print("\n\n")
-        return "beta"
-    else:
-        print("\tFalsch (", prz, "%) Lösung:", l1, "\n")
-        print("\n\n")
-        return "gamma"
+    return switch
 
 
-def inputCheck(i):
-    a = neu.quest_number
-    b = i[3]
-    answ = ""
-    while answ == "":
-        answ = str(input("Nr.%d\tWie heisst die Hauptstadt %s?\n\n> " % (a, b)))
-        if answ == "":
-            print("\tLeere Eingabe")
-        else:
-            return answ
 
-def legitAnswer(answ, line, q_cycle):
-    print()
-    solution = line[4]
-    alternativ = line[5]
-    check = answCheck(answ, solution, alternativ)
-    line[8] += 1
-    line[9] = q_cycle
-    line[1] = list(time.localtime()[0:5])
-    if check == "alpha" or check == "beta":
-        line[2] += 1
+class Questions(object):
+    def __init__(self, desk=[]):
+        self.c_questions = load_capitals()
+        self.desk = desk
 
-    return check
+    def getQuestions(self, q_type):
+        self.desk = choose(self.c_questions, q_type)
+        return self.desk
+    def storeQuestions(self):
+        store_capitals(self.c_questions)
 
-def tippMan(tippNR, line):
-    if tippNR < 2:
-        print("\tTipp", tippNR + 1, ": ", line[6+tippNR])
-        return tippNR + 1
-    else:
-        print("\tKeine weiteren Tipps mehr... (versuche !a)")
-        return tippNR + 1
-
-def tippGeber(ans): # Der tippGeber wurde von Quizclown übernommen
-	hintable = [x for x in range(len(ans)) if str.isalnum(ans[x])]
-
-	qty = math.ceil(len(hintable) * 3.5/8.0)
-
-	if len(hintable) == 1:
-		qty = 0
-
-	while len(hintable) > qty:
-		ch = random.randint(0, len(hintable)-1)
-		n = hintable[ch]
-		ans = ans[:n] + '.' + ans[n+1:]
-		del hintable[ch]
-
-	print("\t" + ans)
 
 class Player(object):
-    def __init__(self, points=0):
-        self.points = points
-    def addPoints(self, points):
-        self.points += points
-    def getPoints(self):
-        return self.points
+    PLAYER_POINTS = 0
+
     def storePoints(self):
-        pnts = str(self.points)+"\n"
+        t_diff = round(time.time() - quiz.Q_TIME,2)
+        entry = [list(time.localtime()[0:5]), self.PLAYER_POINTS, e_one.Q_NUMBER, quiz.Q_CYCLE, t_diff]
+        pnts = str(entry)+"\n"
         h = open("player_points.csv", "a")
         h.write(pnts)
         h.close
 
-class Time_Tipp(object):
-    def __init__(self, answer="", s_quest=time.time()):
-        self.s_quest = s_quest
-        self.answer = answer
-    def set_s_quest(self):
-        self.s_quest = time.time()
-    def get_diff(self):
-        diff = round(time.time() - self.s_quest)
-        return diff
-    def tippAuto(self, tippNR, answer):
-        if tippNR < 5:
-            tippGeber(answer)
-            return tippNR + 1
-        else:
-            print("\tKeine weiteren Tipps mehr...")
-            return tippNR + 1
+class Enquirer(object):
+    Q_NUMBER = 0
+    T_TIPP_NR = 0
+    A_TIPP_NR = 0
+    START_T = 0
 
+    def ask(self, q_type):
+        question_desk = q_one.getQuestions(q_type)
 
-class Q_Capitals(object):
-    def __init__(self, desk=[]):
-        self.capitals = dataHS()
-        self.desk = desk
-    def getCapitals(self):
-        return self.capitals
-    def storeCapitals(self):
-        if storeHS(self.capitals) == True:
-            return True
-        else:
-            return False
-    def deskCapitals(self, quantity):
-        if len(self.capitals) > quantity:
-            self.desk = choose(self.capitals, quantity)
-            return self.desk
-        else:
-            self.desk = choose(self.capitals, quantity)
-            return self.desk
-    def askCapitals(self, quantity, q_cycle):
-        question = self.deskCapitals(quantity)
-        for line in question:
-            zt.set_s_quest()
-            neu.quest_number += 1
-            check = "delta"
-            tippNR = 0
-            while check == "delta":
-                answ = inputCheck(line)
-                if answ == "!t":
-                    tippNR = tippMan(tippNR, line)
-                    check = "delta"
-                elif answ == "!p":
-                    print("\tPunkte: ", moi.getPoints())
-                    check = "delta"
-                elif answ == "!a":
-                    tippNR = zt.tippAuto(tippNR, line[4])
-                    if tippNR == 7:
-                        check = legitAnswer("", line, q_cycle)
-                elif answ == "!h":
-                    help()
-                    check = "delta"
-                elif answ == "!x":
-                    if cap.storeCapitals() == True:
-                        moi.storePoints()
-                        print("\tGespeichert!")
-                    else:
-                        print("????")
-                    sys.exit("Byebye!")
+        for question_line in question_desk:
+            q_one.storeQuestions()
+            self.START_T = time.time()
+            self.Q_NUMBER += 1
+            self.T_TIPP_NR = 0
+            self.A_TIPP_NR = 0
+
+            switch = False
+            while switch == False:
+                player_answer = getinput(question_line, q_type)
+
+                if player_answer in ["!t","!a","!h","!p","!r","!x"]:
+                    switch = special_orders(player_answer, question_line, self.START_T)
+
                 else:
-                    check = legitAnswer(answ, line, q_cycle)
+                    switch = legit_answer(player_answer, question_line, self.START_T)
+
 
 
 class Quiz(object):
-    def __init__(self, proceed=True, quiz_cycle=0, quest_number=0):
-        self.proceed = proceed
-        self.quiz_cycle = quiz_cycle
-        self.quest_number = quest_number
-        self.std_size = 3
-        self.cycle_size = 2
-    def startQuiz(self):
-        if cap.capitals == []:
-            sys.exit("Error: Hauptstadt DB ist leer!")
-        while self.proceed == True:
-            line(2)
-            print("\tFragerunde Nr.", self.quiz_cycle+1)
-            line(2)
-            print()
-            cap.askCapitals(self.std_size, self.quiz_cycle)
-            self.quiz_cycle += 1
-            if self.quiz_cycle % self.cycle_size == 0:
-                line(1)
-                print("\tPunkte-Zwischenstand: ", moi.getPoints())
-                line(1)
-                cap.storeCapitals()
-        else:
-            if cap.storeCapitals() == False:
-                print("\tSpeicherfehler...")
-            print("Byebye!")
+    Q_CYCLE = 0
+    Q_TIME = time.time()
+    proceed = True
 
-neu = Quiz()
-cap = Q_Capitals()
-zt = Time_Tipp()
-moi = Player()
-line(1)
-print("\tNeues Quiz - neues Glück!")
-help()
+    def start(self):
+        if self.Q_CYCLE == 0:
+            greeting()
+
+        while self.proceed:
+            self.Q_CYCLE += 1
+
+            if self.Q_CYCLE > 1:
+                line(2)
+                print("\tRunde Nr. %d - %d Punkte" % (self.Q_CYCLE, p_one.PLAYER_POINTS))
+                line(2)
+                print()
+
+            e_one.ask("cap")
+            q_one.storeQuestions()
+            print("\tGespeichert!")
 
 
-neu.startQuiz()
+quiz = Quiz()
+p_one = Player()
+e_one = Enquirer()
+q_one = Questions()
+
+quiz.start()
 
