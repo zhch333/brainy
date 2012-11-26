@@ -26,7 +26,7 @@ FUZZY_UPPER = 0.90  # required level of similarity to accept an answer
 
 
 def load_capitals():
-    f = open("questCapitals2.csv", "r", newline="", encoding="windows-1252")
+    f = open("quest_capitals.bry", "r", newline="", encoding="windows-1252")
     new_read = csv.reader(f, delimiter=",", quoting=csv.QUOTE_ALL)
     data = []
     data.extend(new_read)
@@ -76,13 +76,13 @@ def store_capitals(data):
 
         n_list.append(list(m_list))
 
-    g = open("questCapitals2.csv", "w", newline="", encoding="windows-1252")
+    g = open("quest_capitals.bry", "w", newline="", encoding="windows-1252")
     new_writer = csv.writer(g, delimiter=",", quoting=csv.QUOTE_ALL)
     for row in n_list:
         new_writer.writerow(row)
     g.close()
     # stupid 'test' wheather or not it wrote somethin
-    t = open("questCapitals2.csv","r")
+    t = open("quest_capitals.bry","r")
     test = t.read()
     t.close()
 
@@ -392,7 +392,7 @@ class Player(object):
         t_diff = round(time.time() - quiz.Q_TIME,2)
         entry = [list(time.localtime()[0:5]), self.PLAYER_POINTS, e_one.Q_NUMBER, quiz.Q_CYCLE, t_diff]
         pnts = str(entry)+"\n"
-        h = open("player_points.csv", "a")
+        h = open("player_points.bry", "a")
         h.write(pnts)
         h.close
 
