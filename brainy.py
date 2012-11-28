@@ -176,7 +176,7 @@ def legit_answer(player_answer, question_line, start_time):
     return True
 
 
-# fuzz-comparision of answer and solution with FUZZY_UPPER precision
+# fuzzy-comparision of answer and solution with FUZZY_UPPER precision
 # award points depending on time and congruence (fuzzy-matching)
 def answCheck(player_answer, solution, alt_solution, start_time):
 
@@ -344,10 +344,10 @@ def quiz_start():
     print("\tNeues Quiz - neues Glück!")
     line(1)
     reminder()
-    time.sleep(2)
-    for sek in range(3,0,-1):
-        print(5 * "\t", sek)
-        time.sleep(1)
+##    time.sleep(2)
+##    for sek in range(3,0,-1):
+##        print(5 * "\t", sek)
+##        time.sleep(1)
     line(2)
     print("\tRunde Nr. 1")
     line(2)
@@ -362,7 +362,7 @@ def select_topics():
     print("\ta. Hauptstädte der Länder der Welt")
     print("\tb. Hauptstädte der Kantone/ Bundesländer der Schweiz, Deutschlands und Österreichs")
     print("\tc. Wichtige Konstanten aus der Physik und Mathematik")
-    print("\td. Lateinische Pflanzennamen")
+    print("\td. Literatur: Autoren und ihre Werke")
     print()
     line(1)
 
@@ -376,9 +376,9 @@ def select_topics():
         if "b" in selection:
             q_one.loadQuestions(2)
             proceed = False
-        # if "c" in selection:
-            # q_one.loadQuestions(3)
-            # proceed = False
+        if "c" in selection:
+            q_one.loadQuestions(3)
+            proceed = False
         # if "d" in selection:
             # q_one.loadQuestions(4)
             # proceed = False
@@ -423,26 +423,44 @@ class Player(object):
 class Questions(object):
     def __init__(self):
         self.q_register = [0,0,0,0]
+        self.q_length = [0,0,0,0]
         self.c_world = []
         self.c_deach = []
+        self.c_const = []
         self.sub_world = []
         self.sub_deach = []
+        self.sub_const = []
         self.desk = []
 
     def getQuestions(self, q_type):
-        self.sub_world = choose(self.c_world, q_type)
-        self.sub_deach = choose(self.c_deach, q_type)
-        self.desk = self.sub_world + self.sub_deach
+        if self.q_register[0] == 1:
+            self.sub_world = choose(self.c_world, q_type)
+        if self.q_register[1] == 1:
+            self.sub_deach = choose(self.c_deach, q_type)
+        if self.q_register[2] == 1:
+            if self.q_length[2] > 30 or quiz.Q_CYCLE % 3 == 0:
+                self.sub_const = choose(self.c_const, q_type)
+            else:
+                self.sub_const = []
+
+        self.desk = self.sub_world + self.sub_deach + self.sub_const
         random.shuffle(self.desk)
+
         return self.desk
 
     def loadQuestions(self, selector):
         if selector == 1:
             self.c_world = load_capitals("../quest_world.bry")
             self.q_register[0] = 1
+            self.q_length[0] = len(self.c_world)
         elif selector == 2:
             self.c_deach = load_capitals("../quest_deach.bry")
             self.q_register[1] = 1
+            self.q_length[1] = len(self.c_deach)
+        elif selector == 3:
+            self.c_const = load_capitals("../quest_const.bry")
+            self.q_register[2] = 1
+            self.q_length[2] = len(self.c_const)
         else:
             print("Fragen noch nicht vorhanden")
 
@@ -451,6 +469,8 @@ class Questions(object):
             store_capitals(self.c_world,"../quest_world.bry")
         if q_one.q_register[1] == 1:
             store_capitals(self.c_deach, "../quest_deach.bry")
+        if q_one.q_register[2] == 1:
+            store_capitals(self.c_const, "../quest_const.bry")
 
 class Enquirer(object):
     Q_NUMBER = 0
@@ -462,8 +482,6 @@ class Enquirer(object):
         question_desk = q_one.getQuestions(q_type)
 
         for question_line in question_desk:
-#            q_one.storeQuestions()
-
             self.START_T = time.time()
             self.Q_NUMBER += 1
             self.T_TIPP_NR = 0
@@ -504,7 +522,7 @@ class Quiz(object):
 
             e_one.ask("cap")
             q_one.storeQuestions()
-            print("\tGespeichert!")
+#            print("\tGespeichert!")
 
 
 quiz = Quiz()
