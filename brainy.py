@@ -94,41 +94,37 @@ def store_capitals(data, file_path_name):
     else:
         return False
 
-def choose(orig_data, q_type):
+def choose(orig_data):
     random.shuffle(orig_data)
-    if q_type == "cap":
+    global Q_QUANTITY
 
-        global Q_QUANTITY
+    if len(orig_data) <  Q_QUANTITY:
+        Q_QUANTITY = 3
 
-        if len(orig_data) <  Q_QUANTITY:
-            Q_QUANTITY = 3
+    # just played questions are excluded
+    orig_data.sort(key = lambda x: -x["count"])
+    l = len(orig_data)
+    ready_questions = []
+    for g in orig_data:
+        if g["count"] < 1:
+            ready_questions.append(dict(g))
+    for h in range(len(ready_questions),l):
+        if orig_data[h]["count"] > 0:
+            orig_data[h]["count"] -= 1
 
-        # just played questions are excluded
-        orig_data.sort(key = lambda x: -x["count"])
-        l = len(orig_data)
-        ready_questions = []
-        for g in orig_data:
-            if g["count"] < 1:
-                ready_questions.append(dict(g))
-        for h in range(len(ready_questions),l):
-            if orig_data[h]["count"] > 0:
-                orig_data[h]["count"] -= 1
+    # Selten gestellte Fragen bekommen hohe Priorität - Häufige werden nach Hinten sortiert
+    # Die gewünschte Anzahl Fragen wird abgetrennt
+    ready_questions.sort(key = lambda x: x["date_time"])
+    ready_questions = ready_questions[0:40]
 
-        # Selten gestellte Fragen bekommen hohe Priorität - Häufige werden nach Hinten sortiert
-        # Die gewünschte Anzahl Fragen wird abgetrennt
-        ready_questions.sort(key = lambda x: x["date_time"])
-        ready_questions = ready_questions[0:40]
+    # Nach Datum und Zeit geordnete Vorauswahl
+    ready_questions.sort(key = lambda x: (x["date_time"][0], x["date_time"][1], x["date_time"][2], x["date_time"][3], x["date_time"][4]))
+    desk_c = ready_questions[0:Q_QUANTITY]
 
-        # Nach Datum und Zeit geordnete Vorauswahl
-        ready_questions.sort(key = lambda x: (x["date_time"][0], x["date_time"][1], x["date_time"][2], x["date_time"][3], x["date_time"][4]))
-        desk_c = ready_questions[0:Q_QUANTITY]
+    # shuffle choosen questions
+    random.shuffle(desk_c)
 
-        # shuffle choosen questions
-        random.shuffle(desk_c)
-
-        return desk_c
-    else:
-        print("Fragetyp noch nicht vorhanden!")
+    return desk_c
 
 def line(num):
     if num == 1:
@@ -136,18 +132,23 @@ def line(num):
     elif num == 2:
         print(85 * "-")
 
-def getinput(desk_question, q_type):
-    if q_type == "cap":
-        question = desk_question["question"]
-        player_answer = ""
-        while player_answer == "":
+def getinput(line):
+    question = line["question"]
+    player_answer = ""
+    while player_answer == "":
+        if line["category"] in ["Europa","Afrika","Ozeanien","Asien","Vorderasien","Nordamerika","Südamerika","Karibik"] or line["category"] in ["Schweiz","Österreich","Deutschland"]:
             player_answer = str(input("Nr.%d\tWie heisst die Hauptstadt %s?\n\n> " % (e_one.Q_NUMBER, question)))
-            if player_answer == "":
-                print("\tLeere Eingabe")
-            else:
-                return player_answer
-    else:
-        print("Fragetyp noch nicht vorhanden!")
+
+        elif line["category"] in ["Physik","Mathematik"]:
+            player_answer = str(input("Nr.%d\t %s?\n\n>" % (e_one.Q_NUMBER, question)))
+        else:
+            print("Fragetyp noch nicht vorhanden!")
+
+        if player_answer == "":
+            print("\tLeere Eingabe")
+        else:
+            return player_answer
+
 
 # legit answers (non-empty, not !-orders) are here collected and distributed
 # the function changes some parameters of the question - to prevent repetition
@@ -432,14 +433,14 @@ class Questions(object):
         self.sub_const = []
         self.desk = []
 
-    def getQuestions(self, q_type):
+    def getQuestions(self):
         if self.q_register[0] == 1:
-            self.sub_world = choose(self.c_world, q_type)
+            self.sub_world = choose(self.c_world)
         if self.q_register[1] == 1:
-            self.sub_deach = choose(self.c_deach, q_type)
+            self.sub_deach = choose(self.c_deach)
         if self.q_register[2] == 1:
             if self.q_length[2] > 30 or quiz.Q_CYCLE % 3 == 0:
-                self.sub_const = choose(self.c_const, q_type)
+                self.sub_const = choose(self.c_const)
             else:
                 self.sub_const = []
 
@@ -450,15 +451,15 @@ class Questions(object):
 
     def loadQuestions(self, selector):
         if selector == 1:
-            self.c_world = load_capitals("../quest_world.bry")
+            self.c_world = load_capitals("quest_world.bry")
             self.q_register[0] = 1
             self.q_length[0] = len(self.c_world)
         elif selector == 2:
-            self.c_deach = load_capitals("../quest_deach.bry")
+            self.c_deach = load_capitals("quest_deach.bry")
             self.q_register[1] = 1
             self.q_length[1] = len(self.c_deach)
         elif selector == 3:
-            self.c_const = load_capitals("../quest_const.bry")
+            self.c_const = load_capitals("quest_const.bry")
             self.q_register[2] = 1
             self.q_length[2] = len(self.c_const)
         else:
@@ -466,11 +467,11 @@ class Questions(object):
 
     def storeQuestions(self):
         if q_one.q_register[0] == 1:
-            store_capitals(self.c_world,"../quest_world.bry")
+            store_capitals(self.c_world, "quest_world.bry")
         if q_one.q_register[1] == 1:
-            store_capitals(self.c_deach, "../quest_deach.bry")
+            store_capitals(self.c_deach, "quest_deach.bry")
         if q_one.q_register[2] == 1:
-            store_capitals(self.c_const, "../quest_const.bry")
+            store_capitals(self.c_const, "quest_const.bry")
 
 class Enquirer(object):
     Q_NUMBER = 0
@@ -478,8 +479,8 @@ class Enquirer(object):
     A_TIPP_NR = 0
     START_T = 0
 
-    def ask(self, q_type):
-        question_desk = q_one.getQuestions(q_type)
+    def ask(self):
+        question_desk = q_one.getQuestions()
 
         for question_line in question_desk:
             self.START_T = time.time()
@@ -489,7 +490,7 @@ class Enquirer(object):
 
             switch = False
             while switch == False:
-                player_answer = getinput(question_line, q_type)
+                player_answer = getinput(question_line)
 
                 if player_answer in ["!t","!a","!h","!p","!r","!x"]:
                     switch = special_orders(player_answer, question_line, self.START_T)
@@ -520,7 +521,7 @@ class Quiz(object):
                 line(2)
                 print()
 
-            e_one.ask("cap")
+            e_one.ask()
             q_one.storeQuestions()
 #            print("\tGespeichert!")
 

@@ -35,13 +35,13 @@
     Dateipfade aber relativ zum Programm). Auch das Format der Fragen ist "Marke
     Eigenbau".
     Drei Datenbanken finden sich aber im 7z-Archiv (http://www.7-zip.org/) im
-    Downloadbereich. Wenn man diese 1. herunterlädt, 2. entpackt und 3. ein Ordner
-    ÜBER brainy.py speichert, dann ist brainy versuchsweise zu spielen!
+    Downloadbereich. Wenn man diese 1. herunterlädt, 2. entpackt und 3. in den selben Ordner
+    wie brainy.py speichert, dann ist brainy versuchsweise zu spielen!
 
     Baumdiagramm zur Illustration der benötigten Anordnung:
      
-                     |-brainy.py
-     |-Frage-Dateien-|
+              |-brainy.py
+     |-Ordner-|-Fragedateien
     -|
 
 
@@ -51,7 +51,7 @@
        Kantone & Bundesländer der Schweiz, Österreichs und Deutschlands).
     b) Verbessertes Konzept & System zur Repetition (Karteikasten).
     c) Wechsel zur Speicherung in XML (ist doch einfacher als zuerst gedacht...).
-    d) Möglichkeit eigenen Fragesammlungen zu integrieren.
+    d) Möglichkeit eigene Fragesammlungen zu integrieren.
     e) Evt. ganz basales GUI (easygui).
 
 
