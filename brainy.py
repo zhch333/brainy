@@ -21,12 +21,13 @@ from os import system
 system("title " + "brainy v.3 - das Quiz von Alex")
 
 # global constants - configuration
-Q_QUANTITY = 2      # number of questions per quiz-round - also the number of questions drawn from set
+Q_QUANTITY = 3      # number of questions per quiz-round - also the number of questions drawn from set
 FUZZY_UPPER = 0.90  # required level of similarity to accept an answer
 
 
 def load_capitals(file_path_name):
-    f = open(file_path_name, "r", newline="", encoding="windows-1252")
+    f = open(file_path_name, "r", newline="", encoding="utf-8")
+    # encoding="windows-1252"
     new_read = csv.reader(f, delimiter=",", quoting=csv.QUOTE_ALL)
     data = []
     data.extend(new_read)
@@ -78,7 +79,7 @@ def store_capitals(data, file_path_name):
 
         n_list.append(list(m_list))
 
-    g = open(file_path_name, "w", newline="", encoding="windows-1252")
+    g = open(file_path_name, "w", newline="", encoding="utf-8")
     new_writer = csv.writer(g, delimiter=",", quoting=csv.QUOTE_ALL)
     for row in n_list:
         new_writer.writerow(row)
@@ -148,8 +149,8 @@ def getinput(desk_question, q_type):
     else:
         print("Fragetyp noch nicht vorhanden!")
 
-# Legitime Antworten (nicht-leere, keine !-Befehle) werden hier aufgenommen und weitergleitet
-# Die Funktion ändert einige Werte zur Frage - um Wiederholungen zu vermindern
+# legit answers (non-empty, not !-orders) are here collected and distributed
+# the function changes some parameters of the question - to prevent repetition
 def legit_answer(player_answer, question_line, start_time):
     print()
 
@@ -175,8 +176,8 @@ def legit_answer(player_answer, question_line, start_time):
     return True
 
 
-# Fuzzy-Vergleich der Antwort mit der Lösung - bei FUZZY_UPPER Übereinstimmung o.K.
-# Punkteverteilung nach Zeit und Übereinstimmung. Möglich: Nach Fragetypus.
+# fuzz-comparision of answer and solution with FUZZY_UPPER precision
+# award points depending on time and congruence (fuzzy-matching)
 def answCheck(player_answer, solution, alt_solution, start_time):
 
     comp1 = difflib.SequenceMatcher(None, umlaut(player_answer.lower()), umlaut(solution.lower())).ratio()
@@ -258,8 +259,10 @@ def umlaut(text):
             t[i] = "ue"
 ##        if t[i] == ".":
 ##            t[i] = ""
-        if t[i] == "é":
+        if t[i] in ["é", "è"]:
             t[i] = "e"
+        if t[i] in ["à","â"]:
+            t[i] = "a"
 
     return "".join(t)
 
@@ -336,7 +339,7 @@ def rules():
 
     line(1)
 
-def greeting():
+def quiz_start():
     line(1)
     print("\tNeues Quiz - neues Glück!")
     line(1)
@@ -349,6 +352,36 @@ def greeting():
     print("\tRunde Nr. 1")
     line(2)
 
+def select_topics():
+    line(1)
+    print("\tWillkommen zu BRAINY - Fehler bitte an Alex melden")
+    line(1)
+    print("\tFragensammlungen:")
+    line(2)
+    print()
+    print("\ta. Hauptstädte der Länder der Welt")
+    print("\tb. Hauptstädte der Kantone/ Bundesländer der Schweiz, Deutschlands und Österreichs")
+    print("\tc. Wichtige Konstanten aus der Physik und Mathematik")
+    print("\td. Lateinische Pflanzennamen")
+    print()
+    line(1)
+
+    proceed = True
+    while proceed == True:
+        selection = input("Wahl (z.B. a / bd / abcd): ")
+
+        if "a" in selection:
+            q_one.loadQuestions(1)
+            proceed = False
+        if "b" in selection:
+            q_one.loadQuestions(2)
+            proceed = False
+        # if "c" in selection:
+            # q_one.loadQuestions(3)
+            # proceed = False
+        # if "d" in selection:
+            # q_one.loadQuestions(4)
+            # proceed = False
 
 def special_orders(player_answer, question_line, start_time):
     if player_answer == "!t" or player_answer == "!a":
@@ -376,11 +409,22 @@ def special_orders(player_answer, question_line, start_time):
     return switch
 
 
+class Player(object):
+    PLAYER_POINTS = 0
+
+    def storePoints(self):
+        t_diff = round(time.time() - quiz.Q_TIME,2)
+        entry = [list(time.localtime()[0:5]), self.PLAYER_POINTS, e_one.Q_NUMBER, quiz.Q_CYCLE, t_diff]
+        pnts = str(entry)+"\n"
+        h = open("../player_points.bry", "a")
+        h.write(pnts)
+        h.close
 
 class Questions(object):
     def __init__(self):
-        self.c_world = load_capitals("../quest_world.bry")
-        self.c_deach = load_capitals("../quest_deach.bry")
+        self.q_register = [0,0,0,0]
+        self.c_world = []
+        self.c_deach = []
         self.sub_world = []
         self.sub_deach = []
         self.desk = []
@@ -392,20 +436,21 @@ class Questions(object):
         random.shuffle(self.desk)
         return self.desk
 
+    def loadQuestions(self, selector):
+        if selector == 1:
+            self.c_world = load_capitals("../quest_world.bry")
+            self.q_register[0] = 1
+        elif selector == 2:
+            self.c_deach = load_capitals("../quest_deach.bry")
+            self.q_register[1] = 1
+        else:
+            print("Fragen noch nicht vorhanden")
+
     def storeQuestions(self):
-        store_capitals(self.c_world,"../quest_world.bry")
-        store_capitals(self.c_deach, "../quest_deach.bry")
-
-class Player(object):
-    PLAYER_POINTS = 0
-
-    def storePoints(self):
-        t_diff = round(time.time() - quiz.Q_TIME,2)
-        entry = [list(time.localtime()[0:5]), self.PLAYER_POINTS, e_one.Q_NUMBER, quiz.Q_CYCLE, t_diff]
-        pnts = str(entry)+"\n"
-        h = open("../player_points.bry", "a")
-        h.write(pnts)
-        h.close
+        if q_one.q_register[0] == 1:
+            store_capitals(self.c_world,"../quest_world.bry")
+        if q_one.q_register[1] == 1:
+            store_capitals(self.c_deach, "../quest_deach.bry")
 
 class Enquirer(object):
     Q_NUMBER = 0
@@ -434,17 +479,19 @@ class Enquirer(object):
                 else:
                     switch = legit_answer(player_answer, question_line, self.START_T)
 
-
-
 class Quiz(object):
     Q_CYCLE = 0
     Q_TIME = time.time()
     proceed = True
 
+    def first(self):
+        select_topics()
+        quiz_start()
+
+
     def start(self):
-        pass
-#        if self.Q_CYCLE == 0:
-#            greeting()
+        if self.Q_CYCLE == 0:
+            self.first()
 
         while self.proceed:
             self.Q_CYCLE += 1
@@ -466,4 +513,3 @@ e_one = Enquirer()
 q_one = Questions()
 
 quiz.start()
-
