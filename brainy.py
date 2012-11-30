@@ -1,8 +1,8 @@
 ﻿#-------------------------------------------------------------------------------
-# Name:        brainy - das Quiz von Alex
+# Name:        brainy
 # Purpose:     Triviaquiz
 #
-# Author:      zhch - mail: zhch333@gmail.com
+# Author:      zhch - mail: zhch333 at gmail dot com
 #
 # Created:     24.11.2012
 # Version No.: proto-3
@@ -33,18 +33,19 @@ def load_capitals(file_path_name):
     data.extend(new_read)
     f.close()
 
-    one_question = {"category":"","question":"","answer":"","alternativ":"","hint_1":"","hint_2":"","date_time":"","count_known":"","count":"","cycle":""}
+    one_question = {"category":"","subcategory":"","question":"","answer":"","alternativ":"","hint_1":"","hint_2":"","date_time":"","count_known":"","count":"","cycle":""}
     set_capitals = []
 
     for data_line in data:
         one_question["category"] = data_line[0]
-        one_question["question"] = data_line[1]
-        one_question["answer"] = data_line[2]
-        one_question["alternativ"] = data_line[3]
-        one_question["hint_1"] = data_line[4]
-        one_question["hint_2"] = data_line[5]
+        one_question["subcategory"] = data_line[1]
+        one_question["question"] = data_line[2]
+        one_question["answer"] = data_line[3]
+        one_question["alternativ"] = data_line[4]
+        one_question["hint_1"] = data_line[5]
+        one_question["hint_2"] = data_line[6]
 
-        date = data_line[6] #  "(##, ##, ##, ##, ##)" - it's a string at first
+        date = data_line[7] #  "(##, ##, ##, ##, ##)" - it's a string at first
         if date != "":
             date = "".join(c for c in date if c not in "()[]\'\"") # unwanted characters removed
             date = date.split(", ") # conversion into list
@@ -52,9 +53,9 @@ def load_capitals(file_path_name):
         else:
             one_question["date_time"] = 5 * [0]
 
-        one_question["count_known"] = int(data_line[7])
-        one_question["count_false"] = int(data_line[8])
-        one_question["count"] = int(data_line[9])
+        one_question["count_known"] = int(data_line[8])
+        one_question["count_false"] = int(data_line[9])
+        one_question["count"] = int(data_line[10])
         one_question["cycle"] = 0
 
         set_capitals.append(dict(one_question))
@@ -62,20 +63,21 @@ def load_capitals(file_path_name):
     return set_capitals
 
 def store_capitals(data, file_path_name):
-    m_list = [x for x in range(0,11)]
+    m_list = [x for x in range(0,12)]
     n_list = []
     for m in data:
         m_list[0] = m["category"]
-        m_list[1] = m["question"]
-        m_list[2] = m["answer"]
-        m_list[3] = m["alternativ"]
-        m_list[4] = m["hint_1"]
-        m_list[5] = m["hint_2"]
-        m_list[6] = m["date_time"]
-        m_list[7] = m["count_known"]
-        m_list[8] = m["count_false"]
-        m_list[9] = m["count"]
-        m_list[10] = m["cycle"]
+        m_list[1] = m["subcategory"]
+        m_list[2] = m["question"]
+        m_list[3] = m["answer"]
+        m_list[4] = m["alternativ"]
+        m_list[5] = m["hint_1"]
+        m_list[6] = m["hint_2"]
+        m_list[7] = m["date_time"]
+        m_list[8] = m["count_known"]
+        m_list[9] = m["count_false"]
+        m_list[10] = m["count"]
+        m_list[11] = m["cycle"]
 
         n_list.append(list(m_list))
 
@@ -112,12 +114,11 @@ def choose(orig_data):
         if orig_data[h]["count"] > 0:
             orig_data[h]["count"] -= 1
 
-    # Selten gestellte Fragen bekommen hohe Priorität - Häufige werden nach Hinten sortiert
-    # Die gewünschte Anzahl Fragen wird abgetrennt
+    # frequently asked questions are placed at the end
     ready_questions.sort(key = lambda x: x["date_time"])
     ready_questions = ready_questions[0:40]
 
-    # Nach Datum und Zeit geordnete Vorauswahl
+    # preselection according to date and time
     ready_questions.sort(key = lambda x: (x["date_time"][0], x["date_time"][1], x["date_time"][2], x["date_time"][3], x["date_time"][4]))
     desk_c = ready_questions[0:Q_QUANTITY]
 
@@ -136,13 +137,16 @@ def getinput(line):
     question = line["question"]
     player_answer = ""
     while player_answer == "":
-        if line["category"] in ["Europa","Afrika","Ozeanien","Asien","Vorderasien","Nordamerika","Südamerika","Karibik"] or line["category"] in ["Schweiz","Österreich","Deutschland"]:
+        if line["category"] == "Hauptstadt":
             player_answer = str(input("Nr.%d\tWie heisst die Hauptstadt %s?\n\n> " % (e_one.Q_NUMBER, question)))
 
-        elif line["category"] in ["Physik","Mathematik"]:
+        elif line["category"] == "Konstante":
             player_answer = str(input("Nr.%d\t %s?\n\n>" % (e_one.Q_NUMBER, question)))
+        elif line["category"] == "LiteraturAutor":
+            player_answer = str(input("Nr.%d\tWer ist der Autor von '%s'?\n\n" % (e_one.Q_NUMBER, question)))
         else:
             print("Fragetyp noch nicht vorhanden!")
+            break
 
         if player_answer == "":
             print("\tLeere Eingabe")
@@ -150,7 +154,7 @@ def getinput(line):
             return player_answer
 
 
-# legit answers (non-empty, not !-orders) are here collected and distributed
+# legit answers (non-empty, not !-orders) are here collected and prepared for the answercheck
 # the function changes some parameters of the question - to prevent repetition
 def legit_answer(player_answer, question_line, start_time):
     print()
@@ -161,10 +165,15 @@ def legit_answer(player_answer, question_line, start_time):
     question_line["count"] += 1
     question_line["cycle"] = quiz.Q_CYCLE
     question_line["date_time"] = list(time.localtime()[0:5])
-    if check:
-        question_line["count_known"] += 1
+
+    tipp_nr = e_one.A_TIPP_NR + e_one.T_TIPP_NR
+    if check and tipp_nr < 1:
+        question_line["count_known"] += 2
+    elif check == True:
+        pass
     else:
         question_line["count_false"] += 1
+        question_line["count_known"] -= 1
 
     # The new changes have to be written explicite into the database
     for one_dict in q_one.c_world:
@@ -173,6 +182,13 @@ def legit_answer(player_answer, question_line, start_time):
     for one_dict in q_one.c_deach:
         if one_dict["answer"] == question_line["answer"]:
             one_dict.update(question_line)
+    for one_dict in q_one.c_const:
+        if one_dict["answer"] == question_line["answer"]:
+            one_dict.update(question_line)
+    for one_dict in q_one.c_litera:
+        if one_dict["answer"] == question_line["answer"]:
+            one_dict.update(question_line)
+
 
     return True
 
@@ -271,7 +287,7 @@ def hint_please(player_answer, question_line):
     answer = question_line["answer"]
     a = e_one.A_TIPP_NR
     t = e_one.T_TIPP_NR
-    tipp_nr = a + t + 1
+    tipp_nr = e_one.A_TIPP_NR + e_one.T_TIPP_NR + 1
 
     if player_answer == "!a":
         if a < 2:
@@ -361,15 +377,16 @@ def select_topics():
     line(2)
     print()
     print("\ta. Hauptstädte der Länder der Welt")
-    print("\tb. Hauptstädte der Kantone/ Bundesländer der Schweiz, Deutschlands und Österreichs")
+    print("\tb. Hauptstädte der Kantone/ Bundesländer der Schweiz,\n\t   Deutschlands und Österreichs")
     print("\tc. Wichtige Konstanten aus der Physik und Mathematik")
     print("\td. Literatur: Autoren und ihre Werke")
     print()
+    print("\tAuswahl durch aneinanderreihen der gewünschten Optionen\n\t(z.B. a, bd oder abcd)")
     line(1)
 
     proceed = True
     while proceed == True:
-        selection = input("Wahl (z.B. a / bd / abcd): ")
+        selection = input("Wahl : ")
 
         if "a" in selection:
             q_one.loadQuestions(1)
@@ -380,9 +397,9 @@ def select_topics():
         if "c" in selection:
             q_one.loadQuestions(3)
             proceed = False
-        # if "d" in selection:
-            # q_one.loadQuestions(4)
-            # proceed = False
+        if "d" in selection:
+            q_one.loadQuestions(4)
+            proceed = False
 
 def special_orders(player_answer, question_line, start_time):
     if player_answer == "!t" or player_answer == "!a":
@@ -417,7 +434,7 @@ class Player(object):
         t_diff = round(time.time() - quiz.Q_TIME,2)
         entry = [list(time.localtime()[0:5]), self.PLAYER_POINTS, e_one.Q_NUMBER, quiz.Q_CYCLE, t_diff]
         pnts = str(entry)+"\n"
-        h = open("../player_points.bry", "a")
+        h = open("player_points.bry", "a")
         h.write(pnts)
         h.close
 
@@ -428,9 +445,11 @@ class Questions(object):
         self.c_world = []
         self.c_deach = []
         self.c_const = []
+        self.c_litera = []
         self.sub_world = []
         self.sub_deach = []
         self.sub_const = []
+        self.sub_litera = []
         self.desk = []
 
     def getQuestions(self):
@@ -443,8 +462,14 @@ class Questions(object):
                 self.sub_const = choose(self.c_const)
             else:
                 self.sub_const = []
+        if self.q_register[3] == 1:
+            self.sub_litera = choose(self.c_litera)
 
-        self.desk = self.sub_world + self.sub_deach + self.sub_const
+        if quiz.Q_CYCLE % 3 == 0:
+            self.desk = self.sub_world + self.sub_deach + self.sub_const + self.sub_litera
+        else:
+            self.desk = self.sub_world + self.sub_deach + self.sub_litera
+
         random.shuffle(self.desk)
 
         return self.desk
@@ -462,8 +487,12 @@ class Questions(object):
             self.c_const = load_capitals("quest_const.bry")
             self.q_register[2] = 1
             self.q_length[2] = len(self.c_const)
+        elif selector == 4:
+            self.c_litera = load_capitals("quest_litera.bry")
+            self.q_register[3] = 1
+            self.q_length[3] = len(self.c_litera)
         else:
-            print("Fragen noch nicht vorhanden")
+            print("Fragen (noch) nicht vorhanden")
 
     def storeQuestions(self):
         if q_one.q_register[0] == 1:
@@ -472,6 +501,8 @@ class Questions(object):
             store_capitals(self.c_deach, "quest_deach.bry")
         if q_one.q_register[2] == 1:
             store_capitals(self.c_const, "quest_const.bry")
+        if q_one.q_register[3] == 1:
+            store_capitals(self.c_litera, "quest_litera.bry")
 
 class Enquirer(object):
     Q_NUMBER = 0
@@ -511,15 +542,16 @@ class Quiz(object):
     def start(self):
         if self.Q_CYCLE == 0:
             self.first()
+            e_one.ask()
+
+            self.Q_CYCLE = 1
 
         while self.proceed:
             self.Q_CYCLE += 1
-
-            if self.Q_CYCLE > 1:
-                line(2)
-                print("\tRunde Nr. %d - %d Punkte" % (self.Q_CYCLE, p_one.PLAYER_POINTS))
-                line(2)
-                print()
+            line(2)
+            print("\tRunde Nr. %d - %d Punkte" % (self.Q_CYCLE, p_one.PLAYER_POINTS))
+            line(2)
+            print()
 
             e_one.ask()
             q_one.storeQuestions()

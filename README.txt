@@ -35,8 +35,8 @@
     Dateipfade aber relativ zum Programm). Auch das Format der Fragen ist "Marke
     Eigenbau".
     Drei Datenbanken finden sich aber im 7z-Archiv (http://www.7-zip.org/) im
-    Downloadbereich. Wenn man diese 1. herunterlädt, 2. entpackt und 3. in den selben Ordner
-    wie brainy.py speichert, dann ist brainy versuchsweise zu spielen!
+    Downloadbereich. Wenn man diese 1. herunterlädt, 2. entpackt und 3. in den selben
+    Ordner wie brainy.py speichert, dann ist brainy versuchsweise zu spielen!
 
     Baumdiagramm zur Illustration der benötigten Anordnung:
      
@@ -47,12 +47,12 @@
 
 3. Weitere Pläne für brainy
 
-    a) Neue Fragen (Vorhanden: Hauptstädte alle Länder der Welt & Hauptstädte der
-       Kantone & Bundesländer der Schweiz, Österreichs und Deutschlands).
-    b) Verbessertes Konzept & System zur Repetition (Karteikasten).
-    c) Wechsel zur Speicherung in XML (ist doch einfacher als zuerst gedacht...).
-    d) Möglichkeit eigene Fragesammlungen zu integrieren.
-    e) Evt. ganz basales GUI (easygui).
+    (x)
+    (b) Verbessertes Konzept & System zur Repetition (Karteikasten).
+    (c) Wechsel zur Speicherung in XML (ist doch einfacher als zuerst gedacht...).
+    (d) Bestenliste - "Hall of Fame"
+    (e) Möglichkeit eigene Fragesammlungen zu integrieren.
+    (f) Evt. ganz basales GUI (easygui).
 
 
 4. Ist brainy freie Software?
@@ -63,5 +63,7 @@
 
 5. Welche Werkzeuge wurden zur Programmierung benutzt?
 
-    Brainy habe ich mit dem Editor Pyscripter geschrieben. http://code.google.com/p/pyscripter/
-    Zunehmend habe ich aber auch Gefallen an Notepad++ gefunden. http://notepad-plus-plus.org/
+    Brainy habe ich grösstenteils mit dem Editor Pyscripter geschrieben.
+    Link: http://code.google.com/p/pyscripter/
+    Zunehmend habe ich aber auch Gefallen an Notepad++ gefunden.
+    Link: http://notepad-plus-plus.org/
