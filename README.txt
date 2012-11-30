@@ -40,9 +40,9 @@
 3. Weitere Pläne für brainy
 
     (x)
-    (b) Verbessertes Konzept & System zur Repetition (Karteikasten).
+    (x)
     (c) Wechsel zur Speicherung in XML (ist doch einfacher als zuerst gedacht...).
-    (d) Bestenliste - "Hall of Fame"
+    (x)
     (e) Möglichkeit eigene Fragesammlungen zu integrieren.
     (f) Evt. ganz basales GUI (easygui).
 
