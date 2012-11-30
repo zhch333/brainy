@@ -177,16 +177,16 @@ def legit_answer(player_answer, question_line, start_time):
 
     # The new changes have to be written explicite into the database
     for one_dict in q_one.c_world:
-        if one_dict["answer"] == question_line["answer"]:
+        if one_dict["question"] == question_line["question"]:
             one_dict.update(question_line)
     for one_dict in q_one.c_deach:
-        if one_dict["answer"] == question_line["answer"]:
+        if one_dict["question"] == question_line["question"]:
             one_dict.update(question_line)
     for one_dict in q_one.c_const:
-        if one_dict["answer"] == question_line["answer"]:
+        if one_dict["question"] == question_line["question"]:
             one_dict.update(question_line)
     for one_dict in q_one.c_litera:
-        if one_dict["answer"] == question_line["answer"]:
+        if one_dict["question"] == question_line["question"]:
             one_dict.update(question_line)
 
 
