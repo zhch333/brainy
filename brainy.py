@@ -17,11 +17,12 @@ import time
 import difflib
 import math
 import sys
-from os import system
-system("title " + "brainy v.3 - das Quiz von Alex")
+import os
+
+os.system("title " + "brainy v.3 - das Quiz von Alex")
 
 # global constants - configuration
-Q_QUANTITY = 3      # number of questions per quiz-round - also the number of questions drawn from set
+Q_QUANTITY = 4      # number of questions per quiz-round - also the number of questions drawn from each set
 FUZZY_UPPER = 0.90  # required level of similarity to accept an answer
 
 
@@ -56,6 +57,7 @@ def load_capitals(file_path_name):
         one_question["count_known"] = int(data_line[8])
         one_question["count_false"] = int(data_line[9])
         one_question["count"] = int(data_line[10])
+        one_question["box"] = int(data_line[11])
         one_question["cycle"] = 0
 
         set_capitals.append(dict(one_question))
@@ -63,7 +65,7 @@ def load_capitals(file_path_name):
     return set_capitals
 
 def store_capitals(data, file_path_name):
-    m_list = [x for x in range(0,12)]
+    m_list = [x for x in range(0,13)]
     n_list = []
     for m in data:
         m_list[0] = m["category"]
@@ -77,7 +79,8 @@ def store_capitals(data, file_path_name):
         m_list[8] = m["count_known"]
         m_list[9] = m["count_false"]
         m_list[10] = m["count"]
-        m_list[11] = m["cycle"]
+        m_list[11] = m["box"]
+        m_list[12] = m["cycle"]
 
         n_list.append(list(m_list))
 
@@ -97,29 +100,25 @@ def store_capitals(data, file_path_name):
         return False
 
 def choose(orig_data):
-    random.shuffle(orig_data)
     global Q_QUANTITY
 
     if len(orig_data) <  Q_QUANTITY:
         Q_QUANTITY = 3
 
-    # just played questions are excluded
-    orig_data.sort(key = lambda x: -x["count"])
-    l = len(orig_data)
-    ready_questions = []
+    # sort out questions used in the preceeding round
+    newquestions = []
     for g in orig_data:
-        if g["count"] < 1:
-            ready_questions.append(dict(g))
-    for h in range(len(ready_questions),l):
-        if orig_data[h]["count"] > 0:
-            orig_data[h]["count"] -= 1
+        if g["cycle"] < quiz.Q_CYCLE:
+            newquestions.append(dict(g))
 
-    # frequently asked questions are placed at the end
-    ready_questions.sort(key = lambda x: x["date_time"])
-    ready_questions = ready_questions[0:40]
+    # sort questions according to their box-number (low box = needs more repetition)
+    newquestions.sort(key = lambda x: -x["box"])
 
-    # preselection according to date and time
+    ready_questions = newquestions[0:13]
+
+    # sort according to date and time
     ready_questions.sort(key = lambda x: (x["date_time"][0], x["date_time"][1], x["date_time"][2], x["date_time"][3], x["date_time"][4]))
+
     desk_c = ready_questions[0:Q_QUANTITY]
 
     # shuffle choosen questions
@@ -138,7 +137,10 @@ def getinput(line):
     player_answer = ""
     while player_answer == "":
         if line["category"] == "Hauptstadt":
-            player_answer = str(input("Nr.%d\tWie heisst die Hauptstadt %s?\n\n> " % (e_one.Q_NUMBER, question)))
+            if line["subcategory"] in ["Schweiz","Österreich","Deutschland"]:
+                player_answer = str(input("Nr.%d\t(%s) Wie heisst die Hauptstadt %s?\n\n> " % (e_one.Q_NUMBER, line["subcategory"], question)))
+            else:
+                player_answer = str(input("Nr.%d\tWie heisst die Hauptstadt %s?\n\n> " % (e_one.Q_NUMBER, question)))
 
         elif line["category"] == "Konstante":
             player_answer = str(input("Nr.%d\t %s?\n\n>" % (e_one.Q_NUMBER, question)))
@@ -167,13 +169,16 @@ def legit_answer(player_answer, question_line, start_time):
     question_line["date_time"] = list(time.localtime()[0:5])
 
     tipp_nr = e_one.A_TIPP_NR + e_one.T_TIPP_NR
-    if check and tipp_nr < 1:
-        question_line["count_known"] += 2
+    if check == True and tipp_nr < 1:
+        question_line["count_known"] += 1
+        if question_line["box"] < 9:
+            question_line["box"] += 1
     elif check == True:
-        pass
+        question_line["count_known"] += 1
     else:
         question_line["count_false"] += 1
         question_line["count_known"] -= 1
+        question_line["box"] = 0
 
     # The new changes have to be written explicite into the database
     for one_dict in q_one.c_world:
@@ -335,8 +340,9 @@ def reminder():
     print("\t   !a = Automatischer Tipp - einige Buchstaben werden aufgedeckt\n\t\tJeder Aufruf halbiert die möglichen Punkte\n")
     print("\t   !t = Hinweise - max 2 pro Frage, oft kein Hinweis vorhanden\n\t\tKostet keine Punkte\n")
     print("\t   !p = Gewonnene Punkte werden angezeigt\n")
+    print("\t   !s = Neustart - speichert alle Punkte und startet das\n\t\tProgramm neu\n")
     print("\t   !h = Diese Hilfe nochmals anzeigen\n")
-    print("\t   !x = Exit - speichert und verlässt das Spiel\n")
+    print("\t   !x = Exit - speichert und verlässt das Programm\n")
     line(1)
 
 def rules():
@@ -371,14 +377,12 @@ def quiz_start():
 
 def select_topics():
     line(1)
-    print("\tWillkommen zu BRAINY - Fehler bitte an Alex melden")
-    line(1)
     print("\tFragensammlungen:")
     line(2)
     print()
     print("\ta. Hauptstädte der Länder der Welt")
     print("\tb. Hauptstädte der Kantone/ Bundesländer der Schweiz,\n\t   Deutschlands und Österreichs")
-    print("\tc. Wichtige Konstanten aus der Physik und Mathematik")
+    print("\tc. Wichtige Konstanten aus den Naturwissenschaften")
     print("\td. Literatur: Autoren und ihre Werke")
     print()
     print("\tAuswahl durch aneinanderreihen der gewünschten Optionen\n\t(z.B. a, bd oder abcd)")
@@ -401,6 +405,13 @@ def select_topics():
             q_one.loadQuestions(4)
             proceed = False
 
+def welcome():
+    line(1)
+    print("\tWillkommen zu BRAINY - Fehler bitte an Alex melden")
+    line(1)
+    p_one.p_name = input("Dein Name: ")
+    print()
+
 def special_orders(player_answer, question_line, start_time):
     if player_answer == "!t" or player_answer == "!a":
         switch = hint_please(player_answer, question_line)
@@ -409,8 +420,12 @@ def special_orders(player_answer, question_line, start_time):
         else:
             switch = False
     elif player_answer == "!p":
-        print("\tPunkte: ", p_one.PLAYER_POINTS)
-        print()
+        print("\t%s hat %d Punkte" % (p_one.p_name, p_one.PLAYER_POINTS))
+        line(2)
+        print("\tAllzeit-Bestenliste:\n")
+        for line in p_one.p_best:
+            print("\t",line)
+        line(2)
         switch = False
     elif player_answer == "!h":
         reminder()
@@ -418,25 +433,53 @@ def special_orders(player_answer, question_line, start_time):
     elif player_answer == "!r":
         rules()
         switch = False
-    elif player_answer == "!x":
+
+    elif player_answer == "!x" or player_answer == "!s":
         p_one.storePoints()
         q_one.storeQuestions()
-
-        sys.exit("Byebye!")
+        if player_answer == "!s":
+            quiz.newgame()
+        else:
+            sys.exit("Byebye!")
 
     return switch
 
 
 class Player(object):
     PLAYER_POINTS = 0
+    p_name = ""
+    p_best = []
 
     def storePoints(self):
         t_diff = round(time.time() - quiz.Q_TIME,2)
-        entry = [list(time.localtime()[0:5]), self.PLAYER_POINTS, e_one.Q_NUMBER, quiz.Q_CYCLE, t_diff]
+        entry = [self.p_name, (time.localtime()[0:5]), self.PLAYER_POINTS, e_one.Q_NUMBER, quiz.Q_CYCLE, t_diff]
         pnts = str(entry)+"\n"
         h = open("player_points.bry", "a")
         h.write(pnts)
         h.close
+
+    def loadBest(self):
+        t = open("player_points.bry", "r")
+        new_read = csv.reader(f, delimiter=",", quoting=csv.QUOTE_ALL)
+        data = []
+        data.extend(new_read)
+        t.close()
+
+        one_best = {"name":"","date_time":"","points":"","q_number":"","q_cycle":"","duration":""}
+        set_best = []
+
+        for line in data:
+            one_best["name"] = line[0]
+            one_best["date_time"] = line[1]
+            one_best["points"] = line[2]
+            one_best["q_number"] = line[3]
+            one_best["q_cycle"] = line[4]
+            one_best["duration"] = line[5]
+
+            set_bets.append(dict(one_best))
+
+        set_best.sort(key = lambda x: x["points"])
+        self.p_best = set_best[0:6]
 
 class Questions(object):
     def __init__(self):
@@ -466,33 +509,39 @@ class Questions(object):
             self.sub_litera = choose(self.c_litera)
 
         if quiz.Q_CYCLE % 3 == 0:
-            self.desk = self.sub_world + self.sub_deach + self.sub_const + self.sub_litera
+            self.desk = self.sub_world + self.sub_deach + self.sub_litera + self.sub_const
         else:
             self.desk = self.sub_world + self.sub_deach + self.sub_litera
 
         random.shuffle(self.desk)
+        global Q_QUANTITY
+        self.desk = self.desk[0:Q_QUANTITY]
 
         return self.desk
 
     def loadQuestions(self, selector):
         if selector == 1:
             self.c_world = load_capitals("quest_world.bry")
+            random.shuffle(self.c_world)
             self.q_register[0] = 1
             self.q_length[0] = len(self.c_world)
         elif selector == 2:
             self.c_deach = load_capitals("quest_deach.bry")
+            random.shuffle(self.c_deach)
             self.q_register[1] = 1
             self.q_length[1] = len(self.c_deach)
         elif selector == 3:
             self.c_const = load_capitals("quest_const.bry")
+            random.shuffle(self.c_const)
             self.q_register[2] = 1
             self.q_length[2] = len(self.c_const)
         elif selector == 4:
             self.c_litera = load_capitals("quest_litera.bry")
+            random.shuffle(self.c_litera)
             self.q_register[3] = 1
             self.q_length[3] = len(self.c_litera)
         else:
-            print("Fragen (noch) nicht vorhanden")
+            print("Fehler bei: def loadQuestions() - in class Questions()")
 
     def storeQuestions(self):
         if q_one.q_register[0] == 1:
@@ -523,7 +572,7 @@ class Enquirer(object):
             while switch == False:
                 player_answer = getinput(question_line)
 
-                if player_answer in ["!t","!a","!h","!p","!r","!x"]:
+                if player_answer in ["!t","!a","!h","!p","!s","!r","!x"]:
                     switch = special_orders(player_answer, question_line, self.START_T)
 
                 else:
@@ -535,16 +584,16 @@ class Quiz(object):
     proceed = True
 
     def first(self):
+        welcome()
         select_topics()
         quiz_start()
-
+        p_one.loadBest()
 
     def start(self):
         if self.Q_CYCLE == 0:
+            self.Q_CYCLE = 1
             self.first()
             e_one.ask()
-
-            self.Q_CYCLE = 1
 
         while self.proceed:
             self.Q_CYCLE += 1
@@ -555,7 +604,12 @@ class Quiz(object):
 
             e_one.ask()
             q_one.storeQuestions()
-#            print("\tGespeichert!")
+
+    def newgame(self):
+        print("Neustart...")
+        time.sleep(2)
+        python = sys.executable
+        os.execl(python, python, * sys.argv)
 
 
 quiz = Quiz()
