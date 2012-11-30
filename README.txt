@@ -27,22 +27,14 @@
 
     Brainy ist in Python 3.3 geschrieben - in Windows-Systemen ist diese
     Programmiersprache nicht unbedingt vorhanden. Man kann sie aber problemlos (und
-    gratis) aus dem Netz beziehen und installieren (keine weiteren Kenntnisse nötig).
+    gratis) aus dem Netz beziehen und installieren (keine weitere Kenntnisse nötig).
     Offizieller Download hier: http://www.python.org/download/releases/3.3.0/
 
-    Um Brainy spielen zu können braucht es Fragesammlungen. Momentan sind diese
-    "hart" implementiert, d.h. die Dateinamen sind fix im Code eingebettet (die
-    Dateipfade aber relativ zum Programm). Auch das Format der Fragen ist "Marke
-    Eigenbau".
-    Drei Datenbanken finden sich aber im 7z-Archiv (http://www.7-zip.org/) im
-    Downloadbereich. Wenn man diese 1. herunterlädt, 2. entpackt und 3. in den selben
-    Ordner wie brainy.py speichert, dann ist brainy versuchsweise zu spielen!
 
-    Baumdiagramm zur Illustration der benötigten Anordnung:
-     
-              |-brainy.py
-     |-Ordner-|-Fragedateien
-    -|
+    Eine spielbare Zusammenstellung von brainy mitsamt vier Fragekategorien ist
+    im 7z-Archiv (http://www.7-zip.org/) im Downloadbereich bereitgestellt. Archiv
+    downloaden, entpacken und die Datei brainy.py anklicken - wenn Python 3.x installiert
+    ist, dann startet brainy.
 
 
 3. Weitere Pläne für brainy
