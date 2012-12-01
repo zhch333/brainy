@@ -420,12 +420,13 @@ def special_orders(player_answer, question_line, start_time):
         else:
             switch = False
     elif player_answer == "!p":
+        line(1)
         print("\t%s hat %d Punkte" % (p_one.p_name, p_one.PLAYER_POINTS))
         line(2)
         print("\tAllzeit-Bestenliste:\n")
-        for line in p_one.p_best:
-            print("\t",line)
-        line(2)
+        for k, data_line in enumerate(p_one.p_best):
+            print("\t",k+1,"\t%s mit %0.2f Punkten in %d Runden (%0.1f sec)" % (data_line["name"], data_line["points"], data_line["q_cycle"], data_line["duration"]))
+        line(1)
         switch = False
     elif player_answer == "!h":
         reminder()
@@ -460,26 +461,28 @@ class Player(object):
 
     def loadBest(self):
         t = open("player_points.bry", "r")
-        new_read = csv.reader(f, delimiter=",", quoting=csv.QUOTE_ALL)
+        new_read = csv.reader(t, delimiter=",", quoting=csv.QUOTE_ALL)
         data = []
         data.extend(new_read)
         t.close()
 
         one_best = {"name":"","date_time":"","points":"","q_number":"","q_cycle":"","duration":""}
         set_best = []
+        date = []
 
         for line in data:
-            one_best["name"] = line[0]
-            one_best["date_time"] = line[1]
-            one_best["points"] = line[2]
-            one_best["q_number"] = line[3]
-            one_best["q_cycle"] = line[4]
-            one_best["duration"] = line[5]
+            one_best["name"] = "".join(c for c in line[0] if c not in "()[]\'\"")
+            d_t = "".join(c for c in line[1:5] if c not in "()[]\'\"")
+            one_best["date_time"] = d_t[2:]
+            one_best["points"] = float(line[6])
+            one_best["q_number"] = int(line[7])
+            one_best["q_cycle"] = int(line[8])
+            dura = "".join(c for c in line[9] if c not in "()[]\'\"")
+            one_best["duration"] = float(dura[1:])
+            set_best.append(dict(one_best))
 
-            set_bets.append(dict(one_best))
-
-        set_best.sort(key = lambda x: x["points"])
-        self.p_best = set_best[0:6]
+        set_best.sort(key = lambda x: -x["points"])
+        self.p_best = set_best[0:5]
 
 class Questions(object):
     def __init__(self):
