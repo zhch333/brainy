@@ -112,7 +112,7 @@ def choose(orig_data):
             newquestions.append(dict(g))
 
     # sort questions according to their box-number (low box = needs more repetition)
-    newquestions.sort(key = lambda x: -x["box"])
+    newquestions.sort(key = lambda x: x["box"])
 
     ready_questions = newquestions[0:13]
 
@@ -163,7 +163,7 @@ def legit_answer(player_answer, question_line, start_time):
 
     solution = question_line["answer"]
     alt_solution = question_line["alternativ"]
-    check = answCheck(player_answer, solution, alt_solution, start_time)
+    check = answCheck(str(player_answer), solution, alt_solution, start_time)
     question_line["count"] += 1
     question_line["cycle"] = quiz.Q_CYCLE
     question_line["date_time"] = list(time.localtime()[0:5])
@@ -200,11 +200,14 @@ def legit_answer(player_answer, question_line, start_time):
 
 # fuzzy-comparision of answer and solution with FUZZY_UPPER precision
 # award points depending on time and congruence (fuzzy-matching)
-def answCheck(player_answer, solution, alt_solution, start_time):
+def answCheck(p_answer, solution, alt_solution, start_time):
+    ein = umlaut(p_answer.lower())
+    out = umlaut(solution.lower())
+    out_alt = umlaut(alt_solution.lower())
 
-    comp1 = difflib.SequenceMatcher(None, umlaut(player_answer.lower()), umlaut(solution.lower())).ratio()
+    comp1 = difflib.SequenceMatcher(None, ein, out).ratio()
     if alt_solution != "NULL":
-        comp2 = difflib.SequenceMatcher(None, umlaut(player_answer.lower()), umlaut(alt_solution.lower())).ratio()
+        comp2 = difflib.SequenceMatcher(None, ein, out_alt).ratio()
     else:
         comp2 = 0
 
@@ -237,7 +240,7 @@ def answCheck(player_answer, solution, alt_solution, start_time):
         # hypothetical earned points will be divided by two for each calling of "!a"
         points = round(points /2 ** e_one.A_TIPP_NR, 2)
         p_one.PLAYER_POINTS += points
-        print("\t%s ist korrekt! (%d sek) +%.2f" % (player_answer.upper(), t_diff, points))
+        print("\t%s ist korrekt! (%d sek) +%.2f" % (p_answer.upper(), t_diff, points))
         print("\n")
         return True
 
@@ -253,7 +256,7 @@ def answCheck(player_answer, solution, alt_solution, start_time):
         # hypothetical earned points will be divided by two for each calling of "!a"
         points = round(points /2 ** e_one.A_TIPP_NR, 2)
         p_one.PLAYER_POINTS += points
-        print("\tAntwort > %s < wird akzeptiert. (%d %%, %d sek) + %.2f" % (player_answer, prz, t_diff, points))
+        print("\tAntwort > %s < wird akzeptiert. (%d %%, %d sek) + %.2f" % (p_answer, prz, t_diff, points))
         if alt_solution != "NULL":
             print("\tKorrekt: %s - alternativ: %s" % (solution, alt_solution))
         else:
